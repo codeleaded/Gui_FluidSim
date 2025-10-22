@@ -1,21 +1,23 @@
 #ifndef FLUID_H
 #define FLUID_H
 
+#include "/home/codeleaded/System/Static/Library/Random.h"
 #include "/home/codeleaded/System/Static/Library/Pixel.h"
 #include "/home/codeleaded/System/Static/Library/TransformedView.h"
 
+/*
 #define FLUID_SIZE_X		10.0f
 #define FLUID_SIZE_Y		10.0f
 #define FLUID_COUNT_X		10
 #define FLUID_COUNT_Y		10
-/*
+
 #define H					2.0f
 #define MASS				3141.5f
 #define DENSITY				1000.0f
 #define K					2000.0f
 #define VISCOSITY			0.1f
 #define MU_WATER 			100.0f // 0.001f
-*/
+
 float H = 1.0f;
 float MASS = 1.0f;
 float DENSITY = 1000.0f;
@@ -134,7 +136,6 @@ Vec2 spiky_kernel_gradient(Vec2 r_vec,float h){
 //     return force;
 // }
 
-/*
 float Fluid_Poly6(float r,float h){
 	if(r >= h) return 0.0f;
 	float factor = h * h - r * r;
@@ -282,7 +283,7 @@ Vec2 Fluid_Kernel_Viscosity(Fluid* f,int index){
 	}
 	return pressure;
 }
-*/
+
 
 void compute_density(Fluid* f, float h, float mass) {
     for (int i = 0; i < f->ps.size; i++) {
@@ -399,6 +400,146 @@ void Fluid_Update(Fluid* f,float t){
 		FluidPoint* p = (FluidPoint*)Vector_Get(&f->ps,i);
 		FluidPoint_Update(p,t);
 		p->a = (Vec2){ 0.0f,0.0f };
+	}
+}
+void Fluid_Render(Fluid* f,TransformedView* tv){
+	for(int i = 0;i<f->ps.size;i++){
+		FluidPoint* p = (FluidPoint*)Vector_Get(&f->ps,i);
+
+		Vec2 sp = TransformedView_WorldScreenPos(tv,p->p);
+		float r = TransformedView_WorldScreenLX(tv,0.1f);
+		RenderCircle(sp,r,p->c);
+	}
+}
+void Fluid_Free(Fluid* f){
+	Vector_Free(&f->ps);
+}
+*/
+
+#define BORDER_X    10.0f
+#define BORDER_Y    30.0f
+#define RADIUS      4.0f
+
+float Gradient_Function(float a){
+    const float border = 0.25f;
+    
+    float ret;
+    if(a > border)  ret = 1.0f / (a * a);
+    else            ret = 1.0f / (border * border);
+    return ret * 0.5f;
+
+    //const float t = 10.0f;
+    //const float z = 1.0f;
+    //return t * (-1.0f / (1.0f + powf(2.718f,-z * (a - 1.0f))) + 1.0f);
+}
+
+typedef struct FluidPoint {
+	Vec2 p;
+	Vec2 v;
+	Vec2 a;
+	Vec2 pp;
+	float ps;
+	float dy;
+	Pixel c;
+} FluidPoint;
+
+FluidPoint FluidPoint_New(Vec2 p){
+	FluidPoint f;
+	f.p = p;
+	f.v = (Vec2){ 0.0f,0.0f };
+	f.a = (Vec2){ 0.0f,10.0f };
+	f.ps = 0.0f;
+	f.dy = 0.0f;
+	f.c = BLUE;
+	return f;
+}
+void FluidPoint_Update(FluidPoint* f,float t){
+	//f->v = Vec2_Mulf(f->a,t);
+	//f->v = Vec2_Add(f->v,Vec2_Mulf(f->a,t));
+	//f->v = Vec2_Add(f->v,Vec2_Mulf(f->pp,t));
+	//f->v = Vec2_Mulf(Vec2_Add(f->pp,f->a),t);
+	f->v = Vec2_Add(f->v,Vec2_Mulf(Vec2_Add(f->pp,f->a),t));
+    f->v = Vec2_Mulf(f->v,0.9925f);
+
+	f->p = Vec2_Add(f->p,Vec2_Mulf(f->v,t));
+	f->c = Pixel_Mulf(WHITE,F32_Clamp(1.0f,0.0f,1.0f));
+
+	if(f->p.x < 0.0f){
+		f->p.x = 0.0f;
+		f->v.x *= -1.0f;
+	}
+	if(f->p.x > BORDER_X){
+		f->p.x = BORDER_X;
+		f->v.x *= -1.0f;
+	}
+	if(f->p.y < 0.0f){
+		f->p.y = 0.0f;
+		f->v.y *= -1.0f;
+	}
+	if(f->p.y > BORDER_Y){
+		f->p.y = BORDER_Y;
+		f->v.y *= -0.9f;
+	}
+}
+
+
+typedef struct Fluid {
+	Vector ps;// Vector<FluidPoint>
+	float pressure;
+} Fluid;
+
+Fluid Fluid_New(){
+	Fluid f;
+	f.ps = Vector_New(sizeof(FluidPoint));
+	f.pressure = 0.0f;
+
+	for(int i = 0;i<100;i++){
+		Vec2 p = { Random_f64_MinMax(0.0f,BORDER_X),Random_f64_MinMax(0.0f,BORDER_Y) };
+		Vector_Push(&f.ps,(FluidPoint[]){ FluidPoint_New(p) });
+	}
+
+	return f;
+}
+void Fluid_ApplyForce(Fluid* f,Vec2 pos,float force){
+	for(int i = 0;i<f->ps.size;i++){
+		FluidPoint* p = (FluidPoint*)Vector_Get(&f->ps,i);
+
+        const Vec2 dir = Vec2_Sub(pos,p->p);
+        const float mag2 = Vec2_Mag2(dir);
+	    if(mag2 < RADIUS * RADIUS){
+            const Vec2 norm = Vec2_Norm(dir);
+            const float len = Gradient_Function(Vec2_Mag(dir));
+            p->pp = Vec2_Add(p->pp,Vec2_Mulf(norm,len * force));
+        }
+	}
+}
+void Fluid_Calc(Fluid* f){
+	for(int i = 0;i<f->ps.size;i++){
+		FluidPoint* p = (FluidPoint*)Vector_Get(&f->ps,i);
+        p->pp = (Vec2){ 0.0f,0.0f };
+	}
+    for(int i = 0;i<f->ps.size;i++){
+		FluidPoint* p = (FluidPoint*)Vector_Get(&f->ps,i);
+
+        for(int j = 0;j<f->ps.size;j++){
+	    	FluidPoint* other = (FluidPoint*)Vector_Get(&f->ps,j);
+
+            const Vec2 dir = Vec2_Sub(other->p,p->p);
+            const float mag2 = Vec2_Mag2(dir);
+	    	if(mag2 < RADIUS * RADIUS){
+                const Vec2 norm = Vec2_Norm(dir);
+                const float len = Gradient_Function(Vec2_Mag(dir));
+                p->pp = Vec2_Add(p->pp,Vec2_Mulf(norm,len * 0.5f));
+                other->pp = Vec2_Add(other->pp,Vec2_Mulf(norm,len * -0.5f));
+            }
+	    }
+	}
+}
+void Fluid_Update(Fluid* f,float t){
+    for(int i = 0;i<f->ps.size;i++){
+		FluidPoint* p = (FluidPoint*)Vector_Get(&f->ps,i);
+        p->pp = Vec2_Neg(p->pp);
+        FluidPoint_Update(p,t);
 	}
 }
 void Fluid_Render(Fluid* f,TransformedView* tv){
