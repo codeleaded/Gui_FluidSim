@@ -474,6 +474,8 @@ void FluidPoint_Update(FluidPoint* f,float t){
 	//f->v = Vec2_Add(f->v,Vec2_Mulf(f->a,t));
 	//f->v = Vec2_Add(f->v,Vec2_Mulf(f->pp,t));
 	//f->v = Vec2_Mulf(Vec2_Add(f->pp,f->a),t);
+	
+	if(isnan(f->pp.x) || isnan(f->pp.y)) f->pp = (Vec2){ 0.0f,0.0f };
 	f->v = Vec2_Add(f->v,Vec2_Mulf(Vec2_Add(f->pp,Vec2_Add(f->a,f->aex)),t));
 	f->aex = (Vec2){ 0.0f,0.0f };
 
@@ -629,7 +631,7 @@ void Fluid_CalcFP(Fluid* f,FluidPoint* p){
         const float w = Fluid_Kernel_W(mag,DENSITY_H);
 		p->ro += o->m * w;
 	}
-	p->ro = F32_Clamp(p->ro,DENSITY_WATER * 0.8f,DENSITY_WATER * 10.0f);
+	p->ro = F32_Clamp(p->ro,DENSITY_WATER * 0.8f,DENSITY_WATER * 5.0f);
 	
 	//p->pres = Fluid_Kernel_P(DENSITY_K,p->ro,DENSITY_WATER);
 	//p->pres = fmaxf(p->pres,0.0f);
@@ -638,7 +640,7 @@ void Fluid_CalcFP(Fluid* f,FluidPoint* p){
 	p->pres = (SOUND_SPEED*SOUND_SPEED*DENSITY_WATER/GAMMA_WATER)*(powf(rho_ratio,GAMMA_WATER)-1.0f);
 	//p->pres = (SOUND_SPEED * SOUND_SPEED * DENSITY_WATER) * (rho_ratio - 1.0f);
 	
-	p->pres = F32_Clamp(p->pres,0.0f,DENSITY_WATER * 10.0f * DENSITY_K);
+	p->pres = F32_Clamp(p->pres,0.0f,DENSITY_WATER * 5.0f * DENSITY_K);
 	
 	p->cs = SOUND_SPEED;//sqrtf(p->pres / p->ro);
 }
