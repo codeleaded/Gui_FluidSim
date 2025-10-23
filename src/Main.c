@@ -13,8 +13,8 @@ void Setup(AlxWindow* w){
 
 	tv = TransformedView_Make(
 		(Vec2){ GetWidth(),GetHeight() },
-		(Vec2){ 0.0f,0.0f },
-		(Vec2){ 0.05f,0.05f },
+		(Vec2){ -0.5f * BORDER_X,1.0f },
+		(Vec2){ 0.02f,0.02f },
 		(float)GetWidth() / (float)GetHeight()
 	);
 	fluid = Fluid_New();
