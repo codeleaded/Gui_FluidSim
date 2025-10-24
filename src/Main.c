@@ -3,6 +3,7 @@
 #include "/home/codeleaded/System/Static/Library/PerlinNoise.h"
 #include "/home/codeleaded/System/Static/Library/TransformedView.h"
 
+#define FLUID_ITER
 #include "Fluid.h"
 
 TransformedView tv;
@@ -19,10 +20,10 @@ void Setup(AlxWindow* w){
 	);
 	fluid = Fluid_New();
 
-	DENSITY_H = (1.0f * RADIUS);
+	DENSITY_H = (2.0f * RADIUS);
 	DENSITY_WATER = 3000.0f;
 	MASS_PARTICLE = 12000.0f;//(DENSITY_WATER * RADIUS_TERM);
-	DENSITY_K = 5000.0f;
+	DENSITY_K = 10000.0f;
 	SOUND_SPEED = sqrtf(DENSITY_K / DENSITY_WATER);
 }
 
@@ -31,8 +32,8 @@ void Update(AlxWindow* w){
 	TransformedView_HandlePanZoom(&tv,window.Strokes,GetMouse());
 	Vec2 mouse = TransformedView_ScreenWorldPos(&tv,GetMouse());
 
-	if(Stroke(ALX_KEY_Y).DOWN){
-		Vector_Push(&fluid.ps,(FluidPoint[]){FluidPoint_New(Vec2_Add(
+	if(Stroke(ALX_KEY_Y).PRESSED){
+		Fluid_Insert(&fluid,(FluidPoint[]){FluidPoint_New(Vec2_Add(
 			mouse,
 			(Vec2){ Random_f64_MinMax(-2.0f * RADIUS,2.0f * RADIUS),Random_f64_MinMax(-2.0f * RADIUS,2.0f * RADIUS) }
 		)) });
@@ -68,6 +69,7 @@ void Update(AlxWindow* w){
 	FluidPoint fp = FluidPoint_New(mouse);
 	Fluid_CalcFP(&fluid,&fp);
 
+
 	//Fluid_Update(&fluid,w->ElapsedTime);
 	Fluid_Update(&fluid,0.01f);
 
@@ -80,8 +82,20 @@ void Update(AlxWindow* w){
 	RenderRectWire(r.p.x,r.p.y,r.d.x,r.d.y,WHITE,1.0f);
 
 	Fluid_Render(WINDOW_STD_ARGS,&fluid,&tv);
+	
+	/*
+	Vec2 min_p = Fluid_Pos(Vec2_Subf(fp.p,DENSITY_H));
+	Vec2 max_p = Fluid_Pos(Vec2_Addf(fp.p,DENSITY_H));
+	const int min_x = (int)F32_Clamp(min_p.x,0.0f,fluid.width);
+	const int min_y = (int)F32_Clamp(min_p.y,0.0f,fluid.height);
+	const int max_x = (int)F32_Clamp(max_p.x + 1.0f,0.0f,fluid.width);
+	const int max_y = (int)F32_Clamp(max_p.y + 1.0f,0.0f,fluid.height);
+	Vec2 cp = TransformedView_WorldScreenPos(&tv,Fluid_toPos((Vec2){ min_x,min_y }));
+	Vec2 ct = TransformedView_WorldScreenPos(&tv,Fluid_toPos((Vec2){ max_x,max_y }));
+	Rect_RenderXWire(WINDOW_STD_ARGS,cp,Vec2_Sub(ct,cp),GREEN,1.0f);
+	*/
 
-	String str = String_Format("S: %d, H: %f,M: %f,D: %f,K: %f",fluid.ps.size,DENSITY_H,MASS_PARTICLE,DENSITY_WATER,DENSITY_K);
+	String str = String_Format("S: %d, H: %f,M: %f,D: %f,K: %f",Fluid_Size(&fluid),DENSITY_H,MASS_PARTICLE,DENSITY_WATER,DENSITY_K);
 	RenderCStrSize(str.Memory,str.size,0.0f,0.0f,WHITE);
 	String_Free(&str);
 
